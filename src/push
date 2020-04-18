@@ -1,0 +1,13 @@
+cuda-sim/cuda-sim.cc:      g_stream_manager->register_finished_kernel(kernel.get_uid());
+cuda-sim/cuda_device_runtime.cc:        g_stream_manager->push(stream_op);
+gpgpusim_entrypoint.cc:        while( g_stream_manager->empty_protected() && !g_sim_done )
+gpgpusim_entrypoint.cc:           g_stream_manager->print(stdout);
+gpgpusim_entrypoint.cc:            if(g_stream_manager->operation(&sim_cycles) && !g_the_gpu->active())
+gpgpusim_entrypoint.cc:                    g_stream_manager->stop_all_running_kernels();
+gpgpusim_entrypoint.cc:            active=g_the_gpu->active() || !g_stream_manager->empty_protected();
+gpgpusim_entrypoint.cc:    g_stream_manager->print(stdout);
+gpgpusim_entrypoint.cc:        done = ( g_stream_manager->empty() && !g_sim_active ) || g_sim_done;
+abstract_hardware_model.cc:       g_stream_manager->register_finished_kernel(m_parent_kernel->get_uid());
+abstract_hardware_model.cc:    g_stream_manager->add_stream(stream);
+abstract_hardware_model.cc:      g_stream_manager->add_stream(stream);
+abstract_hardware_model.cc:        g_stream_manager->destroy_stream(*ss);
