@@ -53,6 +53,8 @@
     
 
 /////////////////////////////////////////////////////////////////////////////
+static int first_flag = 1;
+static int updated_max_cta_per_core = 0;
 
 std::list<unsigned> shader_core_ctx::get_regs_written( const inst_t &fvt ) const
 {
@@ -105,6 +107,7 @@ shader_core_ctx::shader_core_ctx( class gpgpu_sim *gpu,
     
     m_threadState = (thread_ctx_t*) calloc(sizeof(thread_ctx_t), config->n_thread_per_shader);
     
+
     m_not_completed = 0;
     m_active_threads.reset();
     m_n_active_cta = 0;
@@ -1513,6 +1516,7 @@ void shader_core_ctx::warp_inst_complete(const warp_inst_t &inst)
 	  m_stats->m_num_sim_insn[m_sid] += inst.active_count();
 
   m_stats->m_num_sim_winsn[m_sid]++;
+  m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_sid + m_warp[inst.warp_id()].get_cta_id()]++;
   m_gpu->gpu_sim_insn += inst.active_count();
   inst.completed(gpu_tot_sim_cycle + gpu_sim_cycle);
 }
@@ -2424,10 +2428,33 @@ void ldst_unit::cycle()
 
 void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t * kernel)
 {
+   int m_id_temp = m_sid;
+   unsigned cumm_winsn_cta = 0;
+   unsigned winsn_cta = 0;
+   unsigned max_winsn_cta = 0;
    assert( m_cta_status[cta_num] > 0 );
    m_cta_status[cta_num]--;
    if (!m_cta_status[cta_num]) {
       m_n_active_cta--;
+
+   
+      //for (int i=0; i<config->num_shader();i++) {
+      if (first_flag) {
+         for (int j=0; j<m_config->max_cta_per_core; j++) {
+            winsn_cta = m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_id_temp + j];
+            printf("m_num_sim_winsn_cta[sid=%d][cta_id=%d] = %d\n", m_id_temp, j, winsn_cta);
+            cumm_winsn_cta += winsn_cta;
+            if (winsn_cta > max_winsn_cta) {
+               max_winsn_cta = winsn_cta;
+            }
+         }
+         updated_max_cta_per_core = cumm_winsn_cta/max_winsn_cta;
+         printf("updated_max_cta_per_core = %d, cumm_winsn_cta = %d, max_winsn_cta= %d\n",updated_max_cta_per_core, cumm_winsn_cta, max_winsn_cta);
+         first_flag = 0;
+      }
+      //}
+
+
       m_barriers.deallocate_barrier(cta_num);
       shader_CTA_count_unlog(m_sid, 1);
 
@@ -2458,6 +2485,17 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
               if(m_kernel == kernel)
                 m_kernel = NULL;
               m_gpu->set_kernel_done( kernel );
+
+              for (int i=0; i<m_config->num_shader();i++) {
+                  for (int j=0; j<m_config->max_cta_per_core; j++) {
+                     m_stats->m_num_sim_winsn_cta[m_config->num_shader()*i + j] = 0;
+                     //printf("m_num_sim_winsn_cta[sid=%d][cta_id=%d] = %d\n", i, j, m_stats->m_num_sim_winsn_cta[m_config->num_shader()*i + j]);
+                  }
+
+              }
+              first_flag = 1;
+              updated_max_cta_per_core = 0;
+              printf("end of kernel updating updated_max_cta_per_core back to %d\n",updated_max_cta_per_core);
           }
       }
 
@@ -3365,7 +3403,11 @@ bool shader_core_ctx::warp_waiting_at_mem_barrier( unsigned warp_id )
 void shader_core_ctx::set_max_cta( const kernel_info_t &kernel ) 
 {
     // calculate the max cta count and cta size for local memory address mapping
-    kernel_max_cta_per_shader = m_config->max_cta(kernel);
+    kernel_max_cta_per_shader = first_flag ? m_config->max_cta(kernel) : updated_max_cta_per_core;
+
+    //updated_max_cta_per_core = kernel_max_cta_per_shader;//m_config->max_cta_per_core;
+    //printf("kernel_max_cta_per_shader = %d, first_flag=%d, max_cta=%d, updated_max_cta_per_core=%d\n",kernel_max_cta_per_shader, first_flag, m_config->max_cta(kernel), updated_max_cta_per_core);//updated_max_cta_per_core);
+
     unsigned int gpu_cta_size = kernel.threads_per_cta();
     kernel_padded_threads_per_cta = (gpu_cta_size%m_config->warp_size) ? 
         m_config->warp_size*((gpu_cta_size/m_config->warp_size)+1) : 
