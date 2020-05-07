@@ -1513,7 +1513,6 @@ void shader_core_ctx::warp_inst_complete(const warp_inst_t &inst)
 	  m_stats->m_num_sim_insn[m_sid] += inst.active_count();
 
   m_stats->m_num_sim_winsn[m_sid]++;
-  m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_sid + m_warp[inst.warp_id()].get_cta_id()]++;
   m_gpu->gpu_sim_insn += inst.active_count();
   inst.completed(gpu_tot_sim_cycle + gpu_sim_cycle);
 }
@@ -2425,24 +2424,10 @@ void ldst_unit::cycle()
 
 void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t * kernel)
 {
-   static int first_flag = 1;
-   int m_id_temp = m_sid;
    assert( m_cta_status[cta_num] > 0 );
    m_cta_status[cta_num]--;
    if (!m_cta_status[cta_num]) {
       m_n_active_cta--;
-
-   
-      //for (int i=0; i<config->num_shader();i++) {
-      if (first_flag) {
-         for (int j=0; j<m_config->max_cta_per_core; j++) {
-            printf("m_num_sim_winsn_cta[sid=%d][cta_id=%d] = %d\n", m_id_temp, j,m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_id_temp + j]);
-         }
-         first_flag = 0;
-      }
-      //}
-
-
       m_barriers.deallocate_barrier(cta_num);
       shader_CTA_count_unlog(m_sid, 1);
 
@@ -2473,7 +2458,6 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
               if(m_kernel == kernel)
                 m_kernel = NULL;
               m_gpu->set_kernel_done( kernel );
-              first_flag = 1;
           }
       }
 
