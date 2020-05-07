@@ -51,10 +51,9 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
     
-
-/////////////////////////////////////////////////////////////////////////////
-static int first_flag = 1;
-static int updated_max_cta_per_core = 0;
+//ECE 695 Project
+unsigned new_max_cta_per_core = 0; //Vaibhav
+unsigned first_tb_complete = 0; //Vaibhav
 
 std::list<unsigned> shader_core_ctx::get_regs_written( const inst_t &fvt ) const
 {
@@ -408,6 +407,14 @@ shader_core_ctx::shader_core_ctx( class gpgpu_sim *gpu,
     m_last_inst_gpu_sim_cycle = 0;
     m_last_inst_gpu_tot_sim_cycle = 0;
 
+    //ECE 695 Project
+    //new_max_cta_per_core = 0;
+    //first_tb_complete = 1; //Vaibhav
+    //max_winsn_cta = 0; //Vaibhav
+    //tot_winsn_sm = 0; //Vaibhav
+
+    //printf("new_max_cta_per_core: %d, first_tb_complete: %d, max_winsn_cta: %d, tot_winsn_sm: %d\n", new_max_cta_per_core, first_tb_complete, max_winsn_cta, tot_winsn_sm); 
+    
     //Jin: for concurrent kernels on a SM
     m_occupied_n_threads = 0;
     m_occupied_shmem = 0;
@@ -2428,78 +2435,72 @@ void ldst_unit::cycle()
 
 void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t * kernel)
 {
-   int m_id_temp = m_sid;
-   unsigned cumm_winsn_cta = 0;
-   unsigned winsn_cta = 0;
-   unsigned max_winsn_cta = 0;
-   assert( m_cta_status[cta_num] > 0 );
-   m_cta_status[cta_num]--;
-   if (!m_cta_status[cta_num]) {
-      m_n_active_cta--;
+  unsigned tot_winsn_sm = 0;
+  unsigned max_winsn_cta = 0;
+  assert( m_cta_status[cta_num] > 0 );
+  m_cta_status[cta_num]--;
+  if (!m_cta_status[cta_num]) {
+    m_n_active_cta--;
 
-   
-      //for (int i=0; i<config->num_shader();i++) {
-      if (first_flag) {
-         for (int j=0; j<m_config->max_cta_per_core; j++) {
-            winsn_cta = m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_id_temp + j];
-            printf("m_num_sim_winsn_cta[sid=%d][cta_id=%d] = %d\n", m_id_temp, j, winsn_cta);
-            cumm_winsn_cta += winsn_cta;
-            if (winsn_cta > max_winsn_cta) {
-               max_winsn_cta = winsn_cta;
-            }
-         }
-         updated_max_cta_per_core = cumm_winsn_cta/max_winsn_cta;
-         printf("updated_max_cta_per_core = %d, cumm_winsn_cta = %d, max_winsn_cta= %d\n",updated_max_cta_per_core, cumm_winsn_cta, max_winsn_cta);
-         first_flag = 0;
+    //Vaibhav
+    if (!first_tb_complete) {
+      for (int j = 0; j < m_config->max_cta_per_core; j++) {
+	tot_winsn_sm += m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_sid + j];
+	if (m_stats->m_num_sim_winsn_cta[m_config->num_shader() * m_sid + j] > max_winsn_cta)
+	  max_winsn_cta = m_stats->m_num_sim_winsn_cta[m_config->num_shader() * m_sid + j];//Vaibhav
       }
-      //}
-
-
-      m_barriers.deallocate_barrier(cta_num);
-      shader_CTA_count_unlog(m_sid, 1);
-
-     SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n",
-        cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
-
-      if( m_n_active_cta == 0 ) {
-        SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Empty (last released kernel %u \'%s\').\n",
-            kernel->get_uid(), kernel->name().c_str());
-          fflush(stdout);
-
-          //Shader can only be empty when no more cta are dispatched
-          if(kernel != m_kernel) {
-              assert(m_kernel == NULL || !m_gpu->kernel_more_cta_left(m_kernel));
-          }
-          m_kernel = NULL;
+      new_max_cta_per_core = tot_winsn_sm / max_winsn_cta;
+      printf("New Max CTAs per Core = %d, Warp Insn. executed by SM = %d, Max Insn. by one CTA = %d (Added by Vaibhav)\n", new_max_cta_per_core, tot_winsn_sm, max_winsn_cta);
+      first_tb_complete = 1;
+    }
+    //Vaibhav
+    m_barriers.deallocate_barrier(cta_num);
+    shader_CTA_count_unlog(m_sid, 1);
+    
+    SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n",
+		   cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
+    
+    if( m_n_active_cta == 0 ) {
+      SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Empty (last released kernel %u \'%s\').\n",
+		     kernel->get_uid(), kernel->name().c_str());
+      fflush(stdout);
+      
+      //Shader can only be empty when no more cta are dispatched
+      if(kernel != m_kernel) {
+	assert(m_kernel == NULL || !m_gpu->kernel_more_cta_left(m_kernel));
       }
-
-      //Jin: for concurrent kernels on sm
-      release_shader_resource_1block(cta_num, *kernel);
-      kernel->dec_running();
-      if( !m_gpu->kernel_more_cta_left(kernel) ) {
-          if( !kernel->running() ) {
-              SHADER_DPRINTF(LIVENESS,
+      m_kernel = NULL;
+    }
+    
+    //Jin: for concurrent kernels on sm
+    release_shader_resource_1block(cta_num, *kernel);
+    kernel->dec_running();
+    if( !m_gpu->kernel_more_cta_left(kernel) ) {
+      if( !kernel->running() ) {
+	SHADER_DPRINTF(LIVENESS,
                 "GPGPU-Sim uArch: GPU detected kernel %u \'%s\' finished on shader %u.\n", kernel->get_uid(),
                 kernel->name().c_str(), m_sid);
 
-              if(m_kernel == kernel)
-                m_kernel = NULL;
-              m_gpu->set_kernel_done( kernel );
-
-              for (int i=0; i<m_config->num_shader();i++) {
-                  for (int j=0; j<m_config->max_cta_per_core; j++) {
-                     m_stats->m_num_sim_winsn_cta[m_config->num_shader()*i + j] = 0;
-                     //printf("m_num_sim_winsn_cta[sid=%d][cta_id=%d] = %d\n", i, j, m_stats->m_num_sim_winsn_cta[m_config->num_shader()*i + j]);
-                  }
-
-              }
-              first_flag = 1;
-              updated_max_cta_per_core = 0;
-              printf("end of kernel updating updated_max_cta_per_core back to %d\n",updated_max_cta_per_core);
-          }
+	if(m_kernel == kernel)
+	  m_kernel = NULL;
+	m_gpu->set_kernel_done( kernel );
+	
+	//Vaibhav
+	//printf("Resetting Instruction counters for each CTA to 0: (Added by Vaibhav)\n");
+	for (int i = 0; i < m_config->num_shader();i++) {
+	  for (int j = 0; j < m_config->max_cta_per_core; j++) {
+	    m_stats->m_num_sim_winsn_cta[m_config->num_shader() * i + j] = 0;
+	    //printf("SM ID = %d, CTA ID = %d, Warp Insn. Count = %d\n", i, j, m_stats->m_num_sim_winsn_cta[m_config->num_shader()*i + j]);
+	  }
+	}
+	first_tb_complete = 0;
+	new_max_cta_per_core = 0;	
+	printf("Kernel End Detected. Reverting new_max_cta_per_core back to %d\n",new_max_cta_per_core);
+	//Vaibhav
       }
-
-   }
+    }
+    
+  }
 }
 
 void gpgpu_sim::shader_print_runtime_stat( FILE *fout ) 
@@ -2994,6 +2995,10 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
           result++;
     }
 
+    //ECE 695 Project: gpu_max_cta_per_shader is limited by LCS now
+    if(first_tb_complete)
+      result = new_max_cta_per_core; //Vaibhav
+
     assert( result <= MAX_CTA_PER_SHADER );
     if (result < 1) {
        printf ("GPGPU-Sim uArch: ERROR ** Kernel requires more resources than shader has.\n");
@@ -3403,10 +3408,11 @@ bool shader_core_ctx::warp_waiting_at_mem_barrier( unsigned warp_id )
 void shader_core_ctx::set_max_cta( const kernel_info_t &kernel ) 
 {
     // calculate the max cta count and cta size for local memory address mapping
-    kernel_max_cta_per_shader = first_flag ? m_config->max_cta(kernel) : updated_max_cta_per_core;
+  kernel_max_cta_per_shader = m_config->max_cta(kernel); //Vaibhav
+  //kernel_max_cta_per_shader = first_tb_complete ? m_config->max_cta(kernel) : new_max_cta_per_core;
 
     //updated_max_cta_per_core = kernel_max_cta_per_shader;//m_config->max_cta_per_core;
-    //printf("kernel_max_cta_per_shader = %d, first_flag=%d, max_cta=%d, updated_max_cta_per_core=%d\n",kernel_max_cta_per_shader, first_flag, m_config->max_cta(kernel), updated_max_cta_per_core);//updated_max_cta_per_core);
+  //printf("kernel_max_cta_per_shader = %d, first_tb_complete=%d, max_cta=%d, new_max_cta_per_core=%d (Vaibhav)\n",kernel_max_cta_per_shader, first_tb_complete, m_config->max_cta(kernel), new_max_cta_per_core); //Vaibhav
 
     unsigned int gpu_cta_size = kernel.threads_per_cta();
     kernel_padded_threads_per_cta = (gpu_cta_size%m_config->warp_size) ? 

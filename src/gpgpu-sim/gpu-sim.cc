@@ -101,6 +101,9 @@ unsigned long long partiton_replys_in_parallel_total = 0;
 
 tr1_hash_map<new_addr_type,unsigned> address_random_interleaving;
 
+//ECE 695 Project
+//extern unsigned first_tb_complete;
+
 /* Clock Domains */
 
 #define  CORE  0x01

@@ -1528,7 +1528,7 @@ struct shader_core_stats_pod {
 	unsigned long long *shader_cycles;
     unsigned *m_num_sim_insn; // number of scalar thread instructions committed by this shader core
     unsigned *m_num_sim_winsn; // number of warp instructions committed by this shader core
-    unsigned *m_num_sim_winsn_cta; // [SO] number of warp instructions committed by this shader core
+    unsigned *m_num_sim_winsn_cta; // number of warp instructions committed by this cta //Vaibhav
 	unsigned *m_last_num_sim_insn;
 	unsigned *m_last_num_sim_winsn;
     unsigned *m_num_decoded_insn; // number of instructions decoded by this shader core
@@ -1617,7 +1617,7 @@ public:
         shader_cycles=(unsigned long long *) calloc(config->num_shader(),sizeof(unsigned long long ));
         m_num_sim_insn = (unsigned*) calloc(config->num_shader(),sizeof(unsigned));
         m_num_sim_winsn = (unsigned*) calloc(config->num_shader(),sizeof(unsigned));
-        m_num_sim_winsn_cta = (unsigned*) calloc((config->num_shader()*config->max_cta_per_core),sizeof(unsigned)); //[SO]
+        m_num_sim_winsn_cta = (unsigned*) calloc((config->num_shader()*config->max_cta_per_core),sizeof(unsigned)); //Vaibhav
 
         m_last_num_sim_winsn = (unsigned*) calloc(config->num_shader(),sizeof(unsigned));
         m_last_num_sim_insn = (unsigned*) calloc(config->num_shader(),sizeof(unsigned));
@@ -1679,7 +1679,7 @@ public:
         delete m_incoming_traffic_stats; 
         free(m_num_sim_insn); 
         free(m_num_sim_winsn);
-        free(m_num_sim_winsn_cta);
+        free(m_num_sim_winsn_cta); //Vaibhav
         free(m_n_diverge); 
         free(shader_cycle_distro);
         free(last_shader_cycle_distro);
@@ -2048,6 +2048,12 @@ public:
     // is that the dynamic_warp_id is a running number unique to every warp
     // run on this shader, where the warp_id is the static warp slot.
     unsigned m_dynamic_warp_id;
+
+    //ECE695 Project
+    //unsigned max_winsn_cta; //Max warp instructions executed by a CTA in the SM //Vaibhav
+    //unsigned tot_winsn_sm; //Total warp instructions executed by an SM
+    //unsigned new_max_cta_per_core; //Vaibhav
+    //static unsigned first_tb_complete; //Vaibhav
 
     //Jin: concurrent kernels on a sm
 public:
