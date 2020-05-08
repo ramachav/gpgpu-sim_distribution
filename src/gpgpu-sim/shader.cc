@@ -52,9 +52,10 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
     
 
-//ECE 695 Project
-unsigned new_max_cta_per_core = 0;
-unsigned first_tb_complete = 0;
+/////////////////////////////////////////////////////////////////////////////
+//static int first_flag = 1;
+int new_max_cta_per_core = 0;
+int first_tb_complete = 0;
 
 std::list<unsigned> shader_core_ctx::get_regs_written( const inst_t &fvt ) const
 {
@@ -2436,6 +2437,7 @@ void ldst_unit::cycle()
 void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t * kernel)
 {
   unsigned tot_winsn_sm = 0;
+  //unsigned winsn_cta = 0;
   unsigned max_winsn_cta = 0;
    assert( m_cta_status[cta_num] > 0 );
    m_cta_status[cta_num]--;
@@ -2461,7 +2463,7 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
      SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n",
         cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
 
-     //printf("GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n", cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
+     printf("GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n", cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
       if( m_n_active_cta == 0 ) {
         SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Empty (last released kernel %u \'%s\').\n",
             kernel->get_uid(), kernel->name().c_str());
@@ -3036,10 +3038,6 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
     	k.volta_cache_config_set = true;
     }
 
-    if(first_tb_complete) {
-      assert( new_max_cta_per_core <= MAX_CTA_PER_SHADER );
-    }
-    
     return first_tb_complete ? new_max_cta_per_core : result;
 }
 
