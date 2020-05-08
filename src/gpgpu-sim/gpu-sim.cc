@@ -1429,6 +1429,7 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
          break;
       }
     }
+    if (free_cta_hw_id==(unsigned)-1) return;
     assert( free_cta_hw_id!=(unsigned)-1 );
 
     // determine hardware threads and warps that will be used for this CTA
