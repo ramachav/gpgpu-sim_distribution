@@ -2463,7 +2463,7 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
      SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n",
         cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
 
-     printf("GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n", cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
+     //printf("GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n", cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
       if( m_n_active_cta == 0 ) {
         SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Empty (last released kernel %u \'%s\').\n",
             kernel->get_uid(), kernel->name().c_str());
