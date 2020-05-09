@@ -52,8 +52,7 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
     
 
-/////////////////////////////////////////////////////////////////////////////
-//static int first_flag = 1;
+//ECE 695 Project
 int new_max_cta_per_core = 0;
 int first_tb_complete = 0;
 
@@ -112,8 +111,9 @@ shader_core_ctx::shader_core_ctx( class gpgpu_sim *gpu,
     m_not_completed = 0;
     m_active_threads.reset();
     m_n_active_cta = 0;
-    for ( unsigned i = 0; i<MAX_CTA_PER_SHADER; i++ ) 
-        m_cta_status[i]=0;
+    for ( unsigned i = 0; i<MAX_CTA_PER_SHADER; i++ ) {
+      m_cta_status[i]=0;
+    }
     for (unsigned i = 0; i<config->n_thread_per_shader; i++) {
         m_thread[i]= NULL;
         m_threadState[i].m_cta_id = -1;
@@ -415,7 +415,9 @@ shader_core_ctx::shader_core_ctx( class gpgpu_sim *gpu,
      // printf("initialised first_tb_complete=%d new_max_cta_per_core=%d", first_tb_complete, new_max_cta_per_core);
     //max_winsn_cta = 0; //Vaibhav
     //tot_winsn_sm = 0; //Vaibhav
-    
+    for ( unsigned i = 0; i<MAX_CTA_PER_SHADER; i++ ) {
+      m_num_sim_winsn_cta[i]=0;
+    }
     //Jin: for concurrent kernels on a SM
     m_occupied_n_threads = 0;
     m_occupied_shmem = 0;
@@ -1524,7 +1526,9 @@ void shader_core_ctx::warp_inst_complete(const warp_inst_t &inst)
 	  m_stats->m_num_sim_insn[m_sid] += inst.active_count();
 
   m_stats->m_num_sim_winsn[m_sid]++;
-  m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_sid + m_warp[inst.warp_id()].get_cta_id()]++;
+  m_num_sim_winsn_cta[m_warp[inst.warp_id()].get_cta_id()]++;
+  //m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_sid + m_warp[inst.warp_id()].get_cta_id()]++;
+  //printf("cta_id=%d, warp_id=%d, s_id=%d, w_inst_cnt= %d\n",m_warp[inst.warp_id()].get_cta_id(), inst.warp_id(),m_sid, m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_sid + m_warp[inst.warp_id()].get_cta_id()]  );
   m_gpu->gpu_sim_insn += inst.active_count();
   inst.completed(gpu_tot_sim_cycle + gpu_sim_cycle);
 }
@@ -2448,12 +2452,20 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
       if (!first_tb_complete) {
 	max_winsn_cta = 0;
 	for (int j = 0; j < m_config->max_cta_per_core; j++) {
-	tot_winsn_sm += m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_sid + j];
-	  if (m_stats->m_num_sim_winsn_cta[m_config->num_shader() * m_sid + j] > max_winsn_cta)
-	    max_winsn_cta = m_stats->m_num_sim_winsn_cta[m_config->num_shader() * m_sid + j];//Vaibhav
+	  //tot_winsn_sm += m_stats->m_num_sim_winsn_cta[m_config->num_shader()*m_sid + j];
+	  tot_winsn_sm += m_num_sim_winsn_cta[j];
+	  //if (m_stats->m_num_sim_winsn_cta[m_config->num_shader() * m_sid + j] > max_winsn_cta)
+	  if (m_num_sim_winsn_cta[j] > max_winsn_cta) {
+	    //max_winsn_cta = m_stats->m_num_sim_winsn_cta[m_config->num_shader() * m_sid + j];//Vaibhav
+	    max_winsn_cta = m_num_sim_winsn_cta[j];//Vaibhav 
+          }
+          //printf("SM ID = %d, CTA ID = %d, Warp Insn. Count = %d\n", m_sid, j, m_num_sim_winsn_cta[j]);
 	}
 	new_max_cta_per_core = tot_winsn_sm / max_winsn_cta;
-	printf("New Max CTAs per Core = %d, Warp Insn. executed by SM = %d, Max Insn. by one CTA = %d\n", new_max_cta_per_core, tot_winsn_sm, max_winsn_cta);
+	if(tot_winsn_sm % max_winsn_cta)
+	  new_max_cta_per_core++;
+	//printf("New Max CTAs per Core = %d, Warp Insn. executed by SM = %d, Max Insn. by one CTA = %d\n", new_max_cta_per_core, tot_winsn_sm, max_winsn_cta);
+	fflush(stdout);
 	first_tb_complete = 1;
       }
       //Vaibhav
@@ -2463,7 +2475,9 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
      SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n",
         cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
 
+     //Vaibhav Print Statement
      //printf("GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n", cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
+     //fflush(stdout);
       if( m_n_active_cta == 0 ) {
         SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Empty (last released kernel %u \'%s\').\n",
             kernel->get_uid(), kernel->name().c_str());
@@ -2491,15 +2505,16 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
 	      
 	      //Vaibhav
 	      //printf("Resetting Instruction counters for each CTA to 0: (Added by Vaibhav)\n");
-              for (int i = 0; i < m_config->num_shader();i++) {
+              //for (int i = 0; i < m_config->num_shader();i++) {
                   for (int j = 0; j < m_config->max_cta_per_core; j++) {
-                     m_stats->m_num_sim_winsn_cta[m_config->num_shader() * i + j] = 0;
+                     //m_stats->m_num_sim_winsn_cta[m_config->num_shader() * i + j] = 0;
+                     m_num_sim_winsn_cta[j] = 0;
                      //printf("SM ID = %d, CTA ID = %d, Warp Insn. Count = %d\n", i, j, m_stats->m_num_sim_winsn_cta[m_config->num_shader()*i + j]);
                   }
-              }
+              //}
               first_tb_complete = 0;
               new_max_cta_per_core = 0;
-              printf("Kernel End Detected. Reverting new_max_cta_per_core back to %d\n",new_max_cta_per_core);
+              //printf("Kernel End Detected. Reverting new_max_cta_per_core back to %d\n",new_max_cta_per_core);
 	      //Vaibhav
           }
       }
@@ -2990,6 +3005,13 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
       if (result == result_regs) printf (" regs");
       if (result == result_cta) printf (" cta_limit");
       printf ("\n");
+      printf("GPGPU-Sim uArch: Actual CTA/core = %u, limited by:", (first_tb_complete? new_max_cta_per_core : result));
+      if(first_tb_complete) printf (" Lazy CTA Scheduling");
+      if (result == result_thread) printf (" threads");
+      if (result == result_shmem) printf (" shmem");
+      if (result == result_regs) printf (" regs");
+      if (result == result_cta) printf (" cta_limit");
+      printf ("\n");
    }
 
     //gpu_max_cta_per_shader is limited by number of CTAs if not enough to keep all cores busy    
@@ -3037,7 +3059,7 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
 
     	k.volta_cache_config_set = true;
     }
-
+    
     return first_tb_complete ? new_max_cta_per_core : result;
 }
 
@@ -3944,15 +3966,50 @@ unsigned simt_core_cluster::issue_block2core()
             }
         }
 
-        if( m_gpu->kernel_more_cta_left(kernel) && 
-//            (m_core[core]->get_n_active_cta() < m_config->max_cta(*kernel)) ) {
-            m_core[core]->can_issue_1block(*kernel)) {
-            m_core[core]->issue_block2core(*kernel);
-            num_blocks_issued++;
-            m_cta_issue_next_core=core; 
-            break;
-        }
+	//Vaibhav
+	if(kernel) {
+	  dim3 kernel_cta_dim = kernel->get_cta_dim(); //Vaibhav
+	
+	  //Check if each CTA is a 2D structure of threads (Satisfies conditions for BCS)
+	  if((m_config->max_cta(*kernel) > 1) && (kernel_cta_dim.y > 1)) {
+	    //Check if more than 1 CTA is left in the kernel
+	    if(m_gpu->kernel_more_than_1_cta_left(kernel)) {
+	      //Check if 2 CTAs can be issued to the SM
+	      if(m_core[core]->can_issue_2blocks(*kernel)) {
+		//Issue 2 CTAs to the SM
+		m_core[core]->issue_block2core(*kernel);
+		num_blocks_issued++;
+		m_core[core]->issue_block2core(*kernel);
+		num_blocks_issued++;
+		m_cta_issue_next_core = core;
+		break;
+	      }
+	      //If 2 CTAs cannot be issued to the SM then don't issue any until
+	      //there is space for 2 CTAs to be issued (Wait until some CTAs have finished execution)
+	    }
+	    else { //Check if 1 CTA is left in the kernel and if it can be issued to the SM
+	      if(m_gpu->kernel_more_cta_left(kernel) && m_core[core]->can_issue_1block(*kernel)) {
+		m_core[core]->issue_block2core(*kernel);
+		num_blocks_issued++;
+		m_cta_issue_next_core = core;
+		break;
+	      }
+	    }
+	  }
+	  else { //Issue 1 CTA as per usual to the SM (RR style)
+	    
+	    if( m_gpu->kernel_more_cta_left(kernel) && 
+		//            (m_core[core]->get_n_active_cta() < m_config->max_cta(*kernel)) ) {
+		m_core[core]->can_issue_1block(*kernel)) {
+	      m_core[core]->issue_block2core(*kernel);
+	      num_blocks_issued++;
+	      m_cta_issue_next_core=core; 
+	      break;
+	    }
+	  }
+	}
     }
+
     return num_blocks_issued;
 }
 

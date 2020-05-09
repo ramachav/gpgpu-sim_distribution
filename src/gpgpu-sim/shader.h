@@ -1528,7 +1528,7 @@ struct shader_core_stats_pod {
 	unsigned long long *shader_cycles;
     unsigned *m_num_sim_insn; // number of scalar thread instructions committed by this shader core
     unsigned *m_num_sim_winsn; // number of warp instructions committed by this shader core
-    unsigned *m_num_sim_winsn_cta; // number of warp instructions committed by this cta //Vaibhav
+    //unsigned *m_num_sim_winsn_cta; // number of warp instructions committed by this cta //Vaibhav
 	unsigned *m_last_num_sim_insn;
 	unsigned *m_last_num_sim_winsn;
     unsigned *m_num_decoded_insn; // number of instructions decoded by this shader core
@@ -1617,7 +1617,7 @@ public:
         shader_cycles=(unsigned long long *) calloc(config->num_shader(),sizeof(unsigned long long ));
         m_num_sim_insn = (unsigned*) calloc(config->num_shader(),sizeof(unsigned));
         m_num_sim_winsn = (unsigned*) calloc(config->num_shader(),sizeof(unsigned));
-        m_num_sim_winsn_cta = (unsigned*) calloc((config->num_shader()*config->max_cta_per_core),sizeof(unsigned)); //Vaibhav
+        //m_num_sim_winsn_cta = (unsigned*) calloc((config->num_shader()*config->max_cta_per_core),sizeof(unsigned)); //Vaibhav
 
         m_last_num_sim_winsn = (unsigned*) calloc(config->num_shader(),sizeof(unsigned));
         m_last_num_sim_insn = (unsigned*) calloc(config->num_shader(),sizeof(unsigned));
@@ -1679,7 +1679,7 @@ public:
         delete m_incoming_traffic_stats; 
         free(m_num_sim_insn); 
         free(m_num_sim_winsn);
-        free(m_num_sim_winsn_cta); //Vaibhav
+        //free(m_num_sim_winsn_cta); //Vaibhav
         free(m_n_diverge); 
         free(shader_cycle_distro);
         free(last_shader_cycle_distro);
@@ -1779,6 +1779,7 @@ public:
 
 // used by simt_core_cluster:
     // modifiers
+    //
     void cycle();
     void reinit(unsigned start_thread, unsigned end_thread, bool reset_not_completed );
     void issue_block2core( class kernel_info_t &kernel );
@@ -2053,7 +2054,8 @@ public:
     //unsigned max_winsn_cta; //Max warp instructions executed by a CTA in the SM //Vaibhav
     //unsigned tot_winsn_sm; //Total warp instructions executed by an SM
     //unsigned new_max_cta_per_core; //Vaibhav
-    //static unsigned first_tb_complete; //Vaibhav
+    //unsigned first_tb_complete; //Vaibhav
+    unsigned m_num_sim_winsn_cta[MAX_CTA_PER_SHADER];
 
     //Jin: concurrent kernels on a sm
 public:
@@ -2061,6 +2063,8 @@ public:
     bool occupy_shader_resource_1block(kernel_info_t & kernel, bool occupy);
     void release_shader_resource_1block(unsigned hw_ctaid, kernel_info_t & kernel);
     int find_available_hwtid(unsigned int cta_size, bool occupy);
+    //ECE 695 Project
+    bool can_issue_2blocks(kernel_info_t & kernel); //Vaibhav
 private:
     unsigned int m_occupied_n_threads; 
     unsigned int m_occupied_shmem; 

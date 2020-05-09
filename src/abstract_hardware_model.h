@@ -330,6 +330,12 @@ public:
    void print_parent_info();
    kernel_info_t * get_parent() { return m_parent_kernel; }
 
+   //ECE 695 Project - Vaibhav
+   bool not_enough_ctas_to_run_bcs() const 
+   {
+     return ((m_next_cta.x >= (m_grid_dim.x - 1) && m_next_cta.y >= (m_grid_dim.y - 1)) || m_next_cta.z >= m_grid_dim.z );
+   }
+
 private:
    kernel_info_t * m_parent_kernel;
    dim3 m_parent_ctaid;

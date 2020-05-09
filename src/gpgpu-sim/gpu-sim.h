@@ -461,6 +461,10 @@ public:
    unsigned threads_per_core() const;
    bool get_more_cta_left() const;
    bool kernel_more_cta_left(kernel_info_t *kernel) const;
+
+   //ECE 695 Project - Vaibhav
+   bool kernel_more_than_1_cta_left(kernel_info_t *kernel) const;
+   
    bool hit_max_cta_count() const;
    kernel_info_t *select_kernel();
 
