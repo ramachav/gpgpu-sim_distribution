@@ -141,6 +141,9 @@ public:
         //Jin: cdp support
         m_cdp_latency = 0;
         m_cdp_dummy = false;
+	//ECE 695 Project - Vaibhav
+	m_cta_pair_id = 0;
+	m_warp_pair_id = 0;
     }
 
     bool functional_done() const;
@@ -282,6 +285,9 @@ private:
 public:
     unsigned int m_cdp_latency;
     bool m_cdp_dummy;
+    //ECE 695 Project - Vaibhav
+    unsigned m_cta_pair_id;
+    unsigned m_warp_pair_id;
 };
 
 
@@ -2065,6 +2071,8 @@ public:
     int find_available_hwtid(unsigned int cta_size, bool occupy);
     //ECE 695 Project
     bool can_issue_2blocks(kernel_info_t & kernel); //Vaibhav
+    unsigned m_cta_pair_id; //For SCA - Vaibhav
+    
 private:
     unsigned int m_occupied_n_threads; 
     unsigned int m_occupied_shmem; 

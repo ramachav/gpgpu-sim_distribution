@@ -1530,6 +1530,14 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
     // resources for use in CTA-wide barrier operations
     m_barriers.allocate_barrier(free_cta_hw_id,warps);
 
+    //For SCA - Vaibhav
+    dim3 kernel_cta_dim = kernel.get_cta_dim();
+    //Check if BCS is likely being used
+    if(kernel_cta_dim.y > 1)
+      m_cta_pair_id = kernel.m_cta_pair_id;
+    else
+      m_cta_pair_id = (unsigned)-1;
+    
     // initialize the SIMT stacks and fetch hardware
     init_warps( free_cta_hw_id, start_thread, end_thread, ctaid, cta_size, kernel.get_uid());
     m_n_active_cta++;

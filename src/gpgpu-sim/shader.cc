@@ -489,6 +489,11 @@ void shader_core_ctx::init_warps( unsigned cta_id, unsigned start_thread, unsign
               }
                
             m_warp[i].init(start_pc,cta_id,i,active_threads, m_dynamic_warp_id);
+
+	    //For SCA - Vaibhav
+	    m_warp[i].m_cta_pair_id = m_cta_pair_id;
+	    m_warp[i].m_warp_pair_id = (i - start_warp) / 2;
+	    
             ++m_dynamic_warp_id;
             m_not_completed += n_active;
             ++m_active_warps;
@@ -974,15 +979,15 @@ void scheduler_unit::order_by_priority( std::vector< T >& result_list,
     typename std::vector< T > temp = input_list;
 
     if ( ORDERING_GREEDY_THEN_PRIORITY_FUNC == ordering ) {
-        T greedy_value = *last_issued_from_input;
+     	T greedy_value = *last_issued_from_input;
         result_list.push_back( greedy_value );
-
-        std::sort( temp.begin(), temp.end(), priority_func );
+	
+        //std::sort( temp.begin(), temp.end(), priority_func ); //Trying a greedy then round robin approach to the ordering
         typename std::vector< T >::iterator iter = temp.begin();
         for ( unsigned count = 0; count < num_warps_to_add; ++count, ++iter ) {
-            if ( *iter != greedy_value ) {
-                result_list.push_back( *iter );
-            }
+	  if ( *iter != greedy_value ) {
+	    result_list.push_back( *iter );
+	  }
         }
     } else if ( ORDERED_PRIORITY_FUNC_ONLY == ordering ) {
         std::sort( temp.begin(), temp.end(), priority_func );
@@ -2462,9 +2467,9 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
           //printf("SM ID = %d, CTA ID = %d, Warp Insn. Count = %d\n", m_sid, j, m_num_sim_winsn_cta[j]);
 	}
 	new_max_cta_per_core = tot_winsn_sm / max_winsn_cta;
-	if(tot_winsn_sm % max_winsn_cta)
-	  new_max_cta_per_core++;
-	//printf("New Max CTAs per Core = %d, Warp Insn. executed by SM = %d, Max Insn. by one CTA = %d\n", new_max_cta_per_core, tot_winsn_sm, max_winsn_cta);
+	//if(tot_winsn_sm % max_winsn_cta)
+	//new_max_cta_per_core++;
+	printf("New Max CTAs per Core = %d, Warp Insn. executed by SM = %d, Max Insn. by one CTA = %d\n", new_max_cta_per_core, tot_winsn_sm, max_winsn_cta);
 	fflush(stdout);
 	first_tb_complete = 1;
       }
@@ -2498,7 +2503,9 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
               SHADER_DPRINTF(LIVENESS,
                 "GPGPU-Sim uArch: GPU detected kernel %u \'%s\' finished on shader %u.\n", kernel->get_uid(),
                 kernel->name().c_str(), m_sid);
-
+	      
+	      kernel->m_cta_pair_id = 0; //For SCA - Vaibhav
+	      
               if(m_kernel == kernel)
                 m_kernel = NULL;
               m_gpu->set_kernel_done( kernel );
@@ -3982,6 +3989,7 @@ unsigned simt_core_cluster::issue_block2core()
 		m_core[core]->issue_block2core(*kernel);
 		num_blocks_issued++;
 		m_cta_issue_next_core = core;
+		kernel->m_cta_pair_id++; //For SCA
 		break;
 	      }
 	      //If 2 CTAs cannot be issued to the SM then don't issue any until
@@ -3992,6 +4000,7 @@ unsigned simt_core_cluster::issue_block2core()
 		m_core[core]->issue_block2core(*kernel);
 		num_blocks_issued++;
 		m_cta_issue_next_core = core;
+		kernel->m_cta_pair_id++; //For SCA
 		break;
 	      }
 	    }

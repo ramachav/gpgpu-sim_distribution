@@ -716,6 +716,9 @@ kernel_info_t::kernel_info_t( dim3 gridDim, dim3 blockDim, class function_info *
     volta_cache_config_set=false;
     m_NameToCudaArray = nameToCudaArray;
     m_NameToTextureInfo = nameToTextureInfo;
+
+    //ECE 695 Project
+    m_cta_pair_id = 0; //Vaibhav
 }
 
 kernel_info_t::~kernel_info_t()
