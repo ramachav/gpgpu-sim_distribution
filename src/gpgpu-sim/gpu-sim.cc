@@ -989,6 +989,8 @@ void gpgpu_sim::deadlock_check()
          icnt_display_state( stdout );
       }
       printf("\nRe-run the simulator in gdb and use debug routines in .gdbinit to debug this\n");
+      printf("2");
+        //fflush(stdout)
       fflush(stdout);
       abort();
    }
@@ -1279,6 +1281,8 @@ void shader_core_ctx::mem_instruction_stats(const warp_inst_t &inst)
             m_stats->gpgpu_n_load_insn += active_count;
         break;
     default:
+        printf("1");
+        fflush(stdout);
         abort();
     }
 }
@@ -1293,6 +1297,21 @@ bool shader_core_ctx::can_issue_1block(kernel_info_t & kernel) {
    }
    else {
       return (get_n_active_cta() < m_config->max_cta(kernel));
+   } 
+}
+
+bool shader_core_ctx::can_issue_2blocks(kernel_info_t & kernel) {
+
+   //Jin: concurrent kernels on one SM
+   if(m_config->gpgpu_concurrent_kernel_sm) {    
+      if(m_config->max_cta(kernel) < 1)
+           return false;
+
+      return occupy_shader_resource_1block(kernel, false);
+   }
+   else {
+       //printf("get_n_active_cta()=%d, m_config->max_cta(kernel)=%d\n",get_n_active_cta(), m_config->max_cta(kernel) );
+      return (get_n_active_cta() < m_config->max_cta(kernel)-1);
    } 
 }
 
@@ -1429,7 +1448,7 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
          break;
       }
     }
-    if (free_cta_hw_id==(unsigned)-1) return;
+    //if (free_cta_hw_id==(unsigned)-1) return;
     assert( free_cta_hw_id!=(unsigned)-1 );
 
     // determine hardware threads and warps that will be used for this CTA
@@ -1506,6 +1525,9 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
     shader_CTA_count_log(m_sid, 1);
     SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: cta:%2u, start_tid:%4u, end_tid:%4u, initialized @(%lld,%lld)\n", 
         free_cta_hw_id, start_thread, end_thread, gpu_sim_cycle, gpu_tot_sim_cycle );
+    //printf("GPGPU-Sim uArch: sid:%d cta:%2u, start_tid:%4u, end_tid:%4u, initialized @(%lld,%lld)\n",m_sid,  
+     //   free_cta_hw_id, start_thread, end_thread, gpu_sim_cycle, gpu_tot_sim_cycle );
+    fflush(stdout);
 
 }
 
@@ -1553,9 +1575,10 @@ void gpgpu_sim::issue_block2core()
         unsigned num = m_cluster[idx]->issue_block2core();
         if( num ) {
             m_last_cluster_issue=idx;
-            m_total_cta_launched += num;
+            //m_total_cta_launched += num;
         }
     }
+    //printf("cycle = %d\n", gpu_sim_cycle);
 }
 
 unsigned long long g_single_step=0; // set this in gdb to single step the pipeline

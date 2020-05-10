@@ -248,6 +248,8 @@ shader_core_ctx::shader_core_ctx( class gpgpu_sim *gpu,
                 );
                 break;
             default:
+        printf("3");
+        fflush(stdout);
                 abort();
         };
     }
@@ -972,7 +974,7 @@ void scheduler_unit::order_by_priority( std::vector< T >& result_list,
     assert( num_warps_to_add <= input_list.size() );
     result_list.clear();
     typename std::vector< T > temp = input_list;
-
+/*
     if ( ORDERING_GREEDY_THEN_PRIORITY_FUNC == ordering ) {
         T greedy_value = *last_issued_from_input;
         result_list.push_back( greedy_value );
@@ -984,7 +986,30 @@ void scheduler_unit::order_by_priority( std::vector< T >& result_list,
                 result_list.push_back( *iter );
             }
         }
-    } else if ( ORDERED_PRIORITY_FUNC_ONLY == ordering ) {
+    }
+
+*/
+    if ( ORDERING_GREEDY_THEN_PRIORITY_FUNC == ordering ) {
+    //else if ( ORDERING_GREEDY_THEN_LRR == ordering ) {
+        T greedy_value = *last_issued_from_input;
+        result_list.push_back( greedy_value );
+
+        //std::sort( temp.begin(), temp.end(), priority_func );
+        typename std::vector< T >::iterator iter = temp.begin();
+        for ( unsigned count = 0; count < num_warps_to_add; ++count, ++iter ) {
+            if ( *iter != greedy_value ) {
+                //printf("sid=%d wid=%d, ", (*iter)->get_warp_id(), (*iter)->get_cta_id());
+                result_list.push_back( *iter );
+            }
+           if ( iter ==  temp.end() ) {
+                iter = temp.begin();
+            }
+
+        }
+        //printf("\n");
+    }
+ 
+      else if ( ORDERED_PRIORITY_FUNC_ONLY == ordering ) {
         std::sort( temp.begin(), temp.end(), priority_func );
         typename std::vector< T >::iterator iter = temp.begin();
         for ( unsigned count = 0; count < num_warps_to_add; ++count, ++iter ) {
@@ -992,6 +1017,8 @@ void scheduler_unit::order_by_priority( std::vector< T >& result_list,
         }
     } else {
         fprintf( stderr, "Unknown ordering - %d\n", ordering );
+        printf("4");
+        fflush(stdout);
         abort();
     }
 }
@@ -1164,7 +1191,7 @@ void scheduler_unit::cycle()
                warp(warp_id).ibuffer_flush();
             }
             if(warp_inst_issued) {
-                SCHED_DPRINTF( "Warp (warp_id %u, dynamic_warp_id %u) issued %u instructions\n",
+                SCHED_DPRINTF( " SID %d, Warp (warp_id %u, dynamic_warp_id %u) issued %u instructions\n", (*iter)->get_cta_id(),
                                (*iter)->get_warp_id(),
                                (*iter)->get_dynamic_warp_id(),
                                issued );
@@ -1190,9 +1217,11 @@ void scheduler_unit::cycle()
             	m_stats->single_issue_nums[m_id]++;
             else if(issued > 1)
             	m_stats->dual_issue_nums[m_id]++;
-            else
+            else {
+        printf("5");
+        fflush(stdout);
             	abort();   //issued should be > 0
-
+}
             break;
         } 
     }
@@ -1259,7 +1288,17 @@ void oldest_scheduler::order_warps()
 		       ORDERED_PRIORITY_FUNC_ONLY,
                        scheduler_unit::sort_warps_by_oldest_dynamic_id );
 }
-
+/*
+void oldest_scheduler::order_warps()
+{
+    order_by_priority( m_next_cycle_prioritized_warps,
+                       m_supervised_warps,
+                       m_last_supervised_issued,
+                       m_supervised_warps.size(),
+		       ORDERING_GREEDY_THEN_LRR,
+                       scheduler_unit::sort_warps_by_oldest_dynamic_id );
+}
+*/
 void
 two_level_active_scheduler::do_on_warp_issued( unsigned warp_id,
                                                unsigned num_issued,
@@ -1277,6 +1316,8 @@ two_level_active_scheduler::do_on_warp_issued( unsigned warp_id,
         fprintf( stderr,
                  "Unimplemented m_inner_level_prioritization: %d\n",
                  m_inner_level_prioritization );
+        printf("6");
+        fflush(stdout);
         abort();
     }
 }
@@ -1323,6 +1364,8 @@ void two_level_active_scheduler::order_warps()
         fprintf( stderr,
                  "Unimplemented m_outer_level_prioritization: %d\n",
                  m_outer_level_prioritization );
+        printf("7");
+        fflush(stdout);
         abort();
     }
     assert( num_promoted == num_demoted );
@@ -1365,6 +1408,8 @@ void swl_scheduler::order_warps()
                            scheduler_unit::sort_warps_by_oldest_dynamic_id );
     } else {
         fprintf(stderr, "swl_scheduler m_prioritization = %d\n", m_prioritization);
+        printf("8");
+        fflush(stdout);
         abort();
     }
 }
@@ -2273,7 +2318,11 @@ void ldst_unit::writeback()
                 serviced_client = next_client; 
             }
             break;
-        default: abort();
+        default:
+
+        printf("9");
+        fflush(stdout);
+ abort();
         }
     }
     // update arbitration priority only if: 
@@ -2463,6 +2512,7 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
 	}
 	new_max_cta_per_core = tot_winsn_sm / max_winsn_cta;
 	printf("New Max CTAs per Core = %d, Warp Insn. executed by SM = %d, Max Insn. by one CTA = %d\n", new_max_cta_per_core, tot_winsn_sm, max_winsn_cta);
+        fflush(stdout);
 	first_tb_complete = 1;
       }
       //Vaibhav
@@ -2472,7 +2522,8 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num, kernel_info_t 
      SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n",
         cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
 
-     printf("GPGPU-Sim uArch: Finished CTA #%d (%lld,%lld), %u CTAs running\n", cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
+     //printf("GPGPU-Sim uArch: sid:%d , Finished CTA #%d (%lld,%lld), %u CTAs running\n",m_sid, cta_num, gpu_sim_cycle, gpu_tot_sim_cycle, m_n_active_cta);
+      fflush(stdout);
       if( m_n_active_cta == 0 ) {
         SHADER_DPRINTF(LIVENESS, "GPGPU-Sim uArch: Empty (last released kernel %u \'%s\').\n",
             kernel->get_uid(), kernel->name().c_str());
@@ -2839,7 +2890,11 @@ void ldst_unit::print(FILE *fout) const
         case WB_ICNT_RC_FAIL: fprintf(fout,"WB_ICNT_RC_FAIL"); break;
         case WB_CACHE_RSRV_FAIL: fprintf(fout,"WB_CACHE_RSRV_FAIL"); break;
         case N_MEM_STAGE_STALL_TYPE: fprintf(fout,"N_MEM_STAGE_STALL_TYPE"); break;
-        default: abort();
+        default:
+        printf("10");
+        fflush(stdout);
+ 
+             abort();
         }
         fprintf(fout,"\n");
     }
@@ -3003,11 +3058,11 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
    }
 
     //gpu_max_cta_per_shader is limited by number of CTAs if not enough to keep all cores busy    
-    if( k.num_blocks() < result*num_shader() ) { 
-       result = k.num_blocks() / num_shader();
-       if (k.num_blocks() % num_shader())
-          result++;
-    }
+    //if( k.num_blocks() < result*num_shader() ) { 
+    //   result = k.num_blocks() / num_shader();
+    //   if (k.num_blocks() % num_shader())
+    //      result++;
+    //}
 
     assert( result <= MAX_CTA_PER_SHADER );
     if (result < 1) {
@@ -3016,6 +3071,8 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
     	   printf ("GPGPU-Sim uArch: gpgpu_ignore_resources_limitation is set, ignore the ERROR!\n");
     	   return 1;
        }
+        printf("11");
+        fflush(stdout);
        abort();
     }
 
@@ -3049,6 +3106,7 @@ unsigned int shader_core_config::max_cta( const kernel_info_t &k ) const
     }
 
     return first_tb_complete ? new_max_cta_per_core : result;
+    //return result;
 }
 
 void shader_core_config::set_pipeline_latency() {
@@ -3277,6 +3335,8 @@ void barrier_set_t::warp_reaches_barrier(unsigned cta_id,unsigned warp_id,warp_i
    if( w == m_cta_to_warps.end() ) { // cta is active
       printf("ERROR ** cta_id %u not found in barrier set on cycle %llu+%llu...\n", cta_id, gpu_tot_sim_cycle, gpu_sim_cycle );
       dump();
+        printf("12");
+        fflush(stdout);
       abort();
    }
    assert( w->second.test(warp_id) == true ); // warp is in cta
@@ -3927,6 +3987,7 @@ unsigned simt_core_cluster::get_n_active_sms() const
 
 unsigned simt_core_cluster::issue_block2core()
 {
+    int flag = 0;
     unsigned num_blocks_issued=0;
     for( unsigned i=0; i < m_config->n_simt_cores_per_cluster; i++ ) {
         unsigned core = (i+m_cta_issue_next_core+1)%m_config->n_simt_cores_per_cluster;
@@ -3953,7 +4014,7 @@ unsigned simt_core_cluster::issue_block2core()
               }
             }
         }
-
+/*
         if( m_gpu->kernel_more_cta_left(kernel) && 
 //            (m_core[core]->get_n_active_cta() < m_config->max_cta(*kernel)) ) {
             m_core[core]->can_issue_1block(*kernel)) {
@@ -3962,7 +4023,48 @@ unsigned simt_core_cluster::issue_block2core()
             m_cta_issue_next_core=core; 
             break;
         }
+*/
+
+        if (kernel) {
+           dim3 kernel_cta_dim = kernel->get_cta_dim();
+           if (m_config->max_cta(*kernel) > 1 && kernel_cta_dim.y > 1 ) {
+              //printf("cycle = %d\n", gpu_sim_cycle);
+              if (m_core[core]->can_issue_2blocks(*kernel)) {
+                 if( m_gpu->kernel_more_cta_left(kernel) ) {
+                     m_core[core]->issue_block2core(*kernel);
+                     num_blocks_issued++;
+                     m_gpu->m_total_cta_launched++;
+                     m_cta_issue_next_core=core;
+                     flag = 1; 
+                     //break;
+                 }
+                 if( m_gpu->kernel_more_cta_left(kernel)) {
+                     m_core[core]->issue_block2core(*kernel);
+                     num_blocks_issued++;
+                     m_gpu->m_total_cta_launched++;
+                     m_cta_issue_next_core=core; 
+                     //break;
+                     flag = 1; 
+                 }
+                 //if (flag == 1){
+                 break; //}
+              }
+           }
+           else {
+              if( m_gpu->kernel_more_cta_left(kernel) && 
+                  m_core[core]->can_issue_1block(*kernel)) {
+                  m_core[core]->issue_block2core(*kernel);
+                  num_blocks_issued++;
+                  m_gpu->m_total_cta_launched++;
+                  m_cta_issue_next_core=core; 
+                  break;
+              }
+           }
+       }
+
+
     }
+
     return num_blocks_issued;
 }
 

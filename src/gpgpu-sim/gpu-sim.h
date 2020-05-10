@@ -467,6 +467,7 @@ public:
    const gpgpu_sim_config &get_config() const { return m_config; }
    void gpu_print_stat();
    void dump_pipeline( int mask, int s, int m ) const;
+   unsigned long long m_total_cta_launched;
 
     void perf_memcpy_to_gpu( size_t dst_start_addr, size_t count );
 
@@ -519,7 +520,6 @@ private:
 
    std::list<unsigned> m_finished_kernel;
    // m_total_cta_launched == per-kernel count. gpu_tot_issued_cta == global count.
-   unsigned long long m_total_cta_launched;
    unsigned long long gpu_tot_issued_cta;
 
    unsigned m_last_cluster_issue;

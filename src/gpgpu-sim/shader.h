@@ -367,6 +367,7 @@ public:
         // priority
         ORDERED_PRIORITY_FUNC_ONLY,
         NUM_ORDERING,
+        ORDERING_GREEDY_THEN_LRR,
     };
     template < typename U >
     void order_by_priority( std::vector< U >& result_list,
@@ -2060,6 +2061,7 @@ public:
     //Jin: concurrent kernels on a sm
 public:
     bool can_issue_1block(kernel_info_t & kernel);
+    bool can_issue_2blocks(kernel_info_t & kernel);
     bool occupy_shader_resource_1block(kernel_info_t & kernel, bool occupy);
     void release_shader_resource_1block(unsigned hw_ctaid, kernel_info_t & kernel);
     int find_available_hwtid(unsigned int cta_size, bool occupy);
